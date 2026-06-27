@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Credit Card Fraud Detection — Analysis Report</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #080c14;
+    --surface: #0e1420;
+    --surface-2: #141b2a;
+    --border: rgba(251, 191, 36, 0.12);
+    --border-bright: rgba(251, 191, 36, 0.35);
+    --amber: #fbbf24;
+    --amber-dim: rgba(251, 191, 36, 0.15);
+    --red: #f43f5e;
+    --red-dim: rgba(244, 63, 94, 0.12);
+    --green: #10b981;
+    --green-dim: rgba(16, 185, 129, 0.12);
+    --blue: #3b82f6;
+    --text: #e2e8f0;
+    --text-muted: #64748b;
+    --text-dim: #94a3b8;
+  }
+
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  /* NOISE OVERLAY */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 1000;
+    opacity: 0.4;
+  }
+
+  /* SCAN LINE */
+  @keyframes scan {
+    0% { transform: translateY(-100%); }
+    100% { transform: translateY(100vh); }
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(251,191,36,0.06), transparent);
+    animation: scan 8s linear infinite;
+    pointer-events: none;
+    z-index: 999;
+  }
+
+  /* GRID BACKGROUND */
+  .page-grid {
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(251,191,36,0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(251,191,36,0.02) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+  }
+
+  /* LAYOUT */
+  .container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 2rem;
+    position: relative;
+    z-index: 10;
+  }
+
+  /* HEADER */
+  header {
+    position: relative;
+    padding: 5rem 0 4rem;
+    border-bottom: 1px solid var(--border);
+    overflow: hidden;
+  }
+
+  header::before {
+    content: '';
+    position: absolute;
+    top: -60px; left: -60px;
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(251,191,36,0.06) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .header-tag {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    color: var(--amber);
+    text-transform: uppercase;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .header-tag::before {
+    content: '';
+    display: inline-block;
+    width: 24px; height: 1px;
+    background: var(--amber);
+  }
+
+  h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    font-weight: 800;
+    line-height: 1.05;
+    color: #fff;
+    margin-bottom: 1.25rem;
+    letter-spacing: -0.03em;
+  }
+
+  h1 span {
+    color: var(--amber);
+  }
+
+  .header-meta {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    display: flex;
+    gap: 2rem;
+    flex-wrap: wrap;
+  }
+
+  .header-meta span {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--amber);
+    display: inline-block;
+  }
+
+  /* SECTIONS */
+  section {
+    padding: 4rem 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section-label {
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--amber);
+    margin-bottom: 0.5rem;
+  }
+
+  h2 {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 2.5rem;
+    letter-spacing: -0.02em;
+  }
+
+  h3 {
+    font-family: 'Syne', sans-serif;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-dim);
+    margin-bottom: 1rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  /* METRIC CARDS */
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 2rem;
+  }
+
+  @media (min-width: 640px) {
+    .metrics-grid { grid-template-columns: repeat(4, 1fr); }
+  }
+
+  .metric-card {
+    background: var(--surface);
+    padding: 1.75rem 1.5rem;
+    transition: background 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .metric-card::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--amber);
+    transform: scaleX(0);
+    transition: transform 0.3s ease;
+    transform-origin: left;
+  }
+
+  .metric-card:hover { background: var(--surface-2); }
+  .metric-card:hover::after { transform: scaleX(1); }
+
+  .metric-card.alert { background: var(--red-dim); }
+  .metric-card.alert .metric-value { color: var(--red); }
+
+  .metric-label {
+    font-size: 0.65rem;
+    font-weight: 500;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 0.75rem;
+  }
+
+  .metric-value {
+    font-family: 'Syne', sans-serif;
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--amber);
+    line-height: 1;
+    margin-bottom: 0.4rem;
+  }
+
+  .metric-sub {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+  }
+
+  /* DATASET INFO */
+  .info-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  @media (min-width: 640px) {
+    .info-row { grid-template-columns: repeat(3, 1fr); }
+  }
+
+  .info-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1.25rem;
+  }
+
+  .info-card .label {
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 0.5rem;
+  }
+
+  .info-card .value {
+    font-size: 0.9rem;
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  /* IMBALANCE BAR */
+  .imbalance-bar {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+  }
+
+  .imbalance-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-bottom: 0.75rem;
+  }
+
+  .bar-track {
+    height: 8px;
+    background: var(--red-dim);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .bar-fill {
+    height: 100%;
+    width: 99.83%;
+    background: var(--green);
+    border-radius: 4px;
+    position: relative;
+  }
+
+  .bar-fill::after {
+    content: '';
+    position: absolute;
+    right: 0; top: 0; bottom: 0;
+    width: 0.17%;
+    background: var(--red);
+  }
+
+  .bar-legend {
+    display: flex;
+    gap: 1.5rem;
+    margin-top: 0.75rem;
+    font-size: 0.7rem;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--text-muted);
+  }
+
+  .legend-dot {
+    width: 8px; height: 8px;
+    border-radius: 2px;
+  }
+
+  /* EDA IMAGES */
+  .eda-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+  }
+
+  @media (max-width: 600px) {
+    .eda-grid { grid-template-columns: 1fr; }
+  }
+
+  .eda-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    transition: border-color 0.2s, transform 0.2s;
+  }
+
+  .eda-card:hover {
+    border-color: var(--border-bright);
+    transform: translateY(-2px);
+  }
+
+  .eda-card img {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  .eda-card .img-placeholder {
+    width: 100%;
+    aspect-ratio: 16/9;
+    background: var(--surface-2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    letter-spacing: 0.1em;
+  }
+
+  .eda-caption {
+    padding: 0.85rem 1rem;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    letter-spacing: 0.05em;
+    border-top: 1px solid var(--border);
+  }
+
+  /* MODEL COMPARISON */
+  .model-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 2.5rem;
+  }
+
+  @media (max-width: 640px) {
+    .model-grid { grid-template-columns: 1fr; }
+  }
+
+  .model-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+
+  .model-card.winner {
+    border-color: var(--amber);
+    position: relative;
+  }
+
+  .winner-badge {
+    position: absolute;
+    top: 1rem; right: 1rem;
+    font-size: 0.6rem;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    background: var(--amber);
+    color: #000;
+    padding: 0.25rem 0.6rem;
+    border-radius: 2px;
+  }
+
+  .model-header {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+
+  .model-name {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 0.25rem;
+  }
+
+  .model-type {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .auc-badge {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.4rem;
+    font-weight: 800;
+    line-height: 1;
+  }
+
+  .auc-badge.high { color: var(--amber); }
+  .auc-badge.low { color: var(--text-muted); }
+
+  .auc-label {
+    font-size: 0.6rem;
+    color: var(--text-muted);
+    letter-spacing: 0.1em;
+    text-align: right;
+  }
+
+  .model-body { padding: 1.25rem 1.5rem; }
+
+  /* METRICS TABLE */
+  .metrics-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.75rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .metrics-table th {
+    text-align: left;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.6rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+    font-weight: 500;
+  }
+
+  .metrics-table td {
+    padding: 0.6rem 0.75rem;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    color: var(--text-dim);
+  }
+
+  .metrics-table tr:last-child td { border-bottom: none; }
+
+  .metrics-table .class-label {
+    color: var(--text-muted);
+    font-size: 0.65rem;
+  }
+
+  .highlight-cell {
+    color: var(--amber) !important;
+    font-weight: 600;
+  }
+
+  .green-cell {
+    color: var(--green) !important;
+    font-weight: 600;
+  }
+
+  /* RECALL COMPARISON */
+  .recall-bar-section { margin-top: 1rem; }
+
+  .recall-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.6rem;
+    font-size: 0.7rem;
+  }
+
+  .recall-model {
+    width: 120px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+    font-size: 0.65rem;
+  }
+
+  .recall-track {
+    flex: 1;
+    height: 6px;
+    background: var(--surface-2);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .recall-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 1s ease;
+  }
+
+  .recall-pct {
+    width: 36px;
+    text-align: right;
+    font-weight: 600;
+    font-size: 0.75rem;
+  }
+
+  /* CONFUSION MATRIX IMAGES */
+  .cm-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-top: 2rem;
+  }
+
+  @media (max-width: 600px) { .cm-grid { grid-template-columns: 1fr; } }
+
+  .cm-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .cm-card.winner-cm { border-color: rgba(251,191,36,0.3); }
+
+  .cm-card img {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  .cm-caption {
+    padding: 0.85rem 1rem;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .cm-auc {
+    font-weight: 600;
+    color: var(--amber);
+  }
+
+  /* CONCLUSION */
+  .conclusion-box {
+    background: linear-gradient(135deg, rgba(251,191,36,0.06), rgba(251,191,36,0.02));
+    border: 1px solid var(--border-bright);
+    border-radius: 8px;
+    padding: 2rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .conclusion-box::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 3px; height: 100%;
+    background: var(--amber);
+  }
+
+  .conclusion-box p {
+    font-size: 0.9rem;
+    line-height: 1.8;
+    color: var(--text-dim);
+    margin-bottom: 1.25rem;
+  }
+
+  .conclusion-box p:last-child { margin-bottom: 0; }
+
+  .conclusion-box strong {
+    color: var(--amber);
+    font-weight: 600;
+  }
+
+  .key-insight {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 1rem;
+    background: rgba(0,0,0,0.2);
+    border-radius: 4px;
+    margin-top: 1.25rem;
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    line-height: 1.6;
+  }
+
+  .insight-icon {
+    font-size: 1rem;
+    flex-shrink: 0;
+    margin-top: 0.1rem;
+  }
+
+  /* FOOTER */
+  footer {
+    padding: 3rem 0;
+    text-align: center;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    letter-spacing: 0.1em;
+  }
+
+  /* ANIMATIONS */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .fade-up {
+    animation: fadeUp 0.5s ease forwards;
+    opacity: 0;
+  }
+
+  .delay-1 { animation-delay: 0.1s; }
+  .delay-2 { animation-delay: 0.2s; }
+  .delay-3 { animation-delay: 0.3s; }
+  .delay-4 { animation-delay: 0.4s; }
+</style>
+</head>
+<body>
+<div class="page-grid"></div>
+
+<!-- HEADER -->
+<header>
+  <div class="container">
+    <div class="header-tag fade-up">Financial Security Analysis</div>
+    <h1 class="fade-up delay-1">Credit Card<br><span>Fraud Detection</span></h1>
+    <div class="header-meta fade-up delay-2">
+      <span><span class="dot"></span> 284,807 transactions analysed</span>
+      <span><span class="dot"></span> Anomaly detection · ML classification</span>
+      <span><span class="dot"></span> Unsupervised vs. deep learning</span>
+    </div>
+  </div>
+</header>
+
+<!-- KEY METRICS -->
+<section>
+  <div class="container">
+    <div class="section-label">Overview</div>
+    <h2>Key Metrics</h2>
+    <div class="metrics-grid fade-up delay-1">
+      <div class="metric-card">
+        <div class="metric-label">Total Transactions</div>
+        <div class="metric-value">284K</div>
+        <div class="metric-sub">284,807 records</div>
+      </div>
+      <div class="metric-card alert">
+        <div class="metric-label">Fraud Rate</div>
+        <div class="metric-value">0.17%</div>
+        <div class="metric-sub">Highly imbalanced dataset</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Best ROC AUC</div>
+        <div class="metric-value">0.85</div>
+        <div class="metric-sub">Autoencoder model</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Fraud Recall</div>
+        <div class="metric-value">90%</div>
+        <div class="metric-sub">Autoencoder · Class 1</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DATASET -->
+<section>
+  <div class="container">
+    <div class="section-label">Data</div>
+    <h2>Dataset Overview</h2>
+
+    <div class="info-row fade-up">
+      <div class="info-card">
+        <div class="label">Records</div>
+        <div class="value">284,807</div>
+      </div>
+      <div class="info-card">
+        <div class="label">Features</div>
+        <div class="value">31 (V1–V28 PCA, Time, Amount, Class)</div>
+      </div>
+      <div class="info-card">
+        <div class="label">Target</div>
+        <div class="value">Class — 0: Legitimate / 1: Fraudulent</div>
+      </div>
+    </div>
+
+    <div class="imbalance-bar fade-up delay-1">
+      <div class="imbalance-label">
+        <span>Class Distribution</span>
+        <span>Severe imbalance</span>
+      </div>
+      <div class="bar-track">
+        <div class="bar-fill"></div>
+      </div>
+      <div class="bar-legend">
+        <div class="legend-item">
+          <div class="legend-dot" style="background:var(--green)"></div>
+          Legitimate — 99.83%
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background:var(--red)"></div>
+          Fraudulent — 0.17%
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- EDA -->
+<section>
+  <div class="container">
+    <div class="section-label">Exploratory Analysis</div>
+    <h2>Data Distributions</h2>
+
+    <div class="eda-grid">
+      <div class="eda-card">
+        <img src="class_distribution.png" alt="Class Distribution" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="img-placeholder" style="display:none">class_distribution.png</div>
+        <div class="eda-caption">Class Distribution — Fraud vs. Legitimate</div>
+      </div>
+      <div class="eda-card">
+        <img src="amount_distribution.png" alt="Amount Distribution" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="img-placeholder" style="display:none">amount_distribution.png</div>
+        <div class="eda-caption">Transaction Amount Distribution</div>
+      </div>
+      <div class="eda-card">
+        <img src="time_distribution.png" alt="Time Distribution" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="img-placeholder" style="display:none">time_distribution.png</div>
+        <div class="eda-caption">Transaction Time Distribution</div>
+      </div>
+      <div class="eda-card">
+        <img src="correlation_heatmap.png" alt="Correlation Heatmap" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="img-placeholder" style="display:none">correlation_heatmap.png</div>
+        <div class="eda-caption">Feature Correlation Heatmap</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- MODEL COMPARISON -->
+<section>
+  <div class="container">
+    <div class="section-label">Model Evaluation</div>
+    <h2>Model Comparison</h2>
+
+    <div class="model-grid">
+      <!-- AUTOENCODER -->
+      <div class="model-card winner">
+        <div class="winner-badge">Winner</div>
+        <div class="model-header">
+          <div>
+            <div class="model-name">Autoencoder</div>
+            <div class="model-type">Deep Learning · Anomaly Detection</div>
+          </div>
+          <div style="text-align:right">
+            <div class="auc-badge high">0.85</div>
+            <div class="auc-label">ROC AUC</div>
+          </div>
+        </div>
+        <div class="model-body">
+          <table class="metrics-table">
+            <thead>
+              <tr>
+                <th>Class</th>
+                <th>Precision</th>
+                <th>Recall</th>
+                <th>F1</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="class-label">0 · Legitimate</td>
+                <td class="green-cell">0.99</td>
+                <td>0.85</td>
+                <td>0.91</td>
+              </tr>
+              <tr>
+                <td class="class-label">1 · Fraud</td>
+                <td>0.02</td>
+                <td class="highlight-cell">0.90</td>
+                <td>0.04</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="recall-bar-section">
+            <div style="font-size:0.65rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-muted);margin-bottom:0.6rem">Fraud Recall</div>
+            <div class="recall-row">
+              <div class="recall-model">Autoencoder</div>
+              <div class="recall-track"><div class="recall-fill" style="width:90%;background:var(--amber)"></div></div>
+              <div class="recall-pct" style="color:var(--amber)">90%</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ISOLATION FOREST -->
+      <div class="model-card">
+        <div class="model-header">
+          <div>
+            <div class="model-name">Isolation Forest</div>
+            <div class="model-type">Ensemble · Unsupervised</div>
+          </div>
+          <div style="text-align:right">
+            <div class="auc-badge low">0.78</div>
+            <div class="auc-label">ROC AUC</div>
+          </div>
+        </div>
+        <div class="model-body">
+          <table class="metrics-table">
+            <thead>
+              <tr>
+                <th>Class</th>
+                <th>Precision</th>
+                <th>Recall</th>
+                <th>F1</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="class-label">0 · Legitimate</td>
+                <td>0.99</td>
+                <td>0.80</td>
+                <td>0.89</td>
+              </tr>
+              <tr>
+                <td class="class-label">1 · Fraud</td>
+                <td>0.01</td>
+                <td>0.85</td>
+                <td>0.02</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="recall-bar-section">
+            <div style="font-size:0.65rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-muted);margin-bottom:0.6rem">Fraud Recall</div>
+            <div class="recall-row">
+              <div class="recall-model">Isolation Forest</div>
+              <div class="recall-track"><div class="recall-fill" style="width:85%;background:var(--text-muted)"></div></div>
+              <div class="recall-pct" style="color:var(--text-muted)">85%</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CONFUSION MATRICES -->
+    <h3>Confusion Matrices</h3>
+    <div class="cm-grid">
+      <div class="cm-card winner-cm">
+        <img src="Autoencoder_confusion_matrix.png" alt="Autoencoder Confusion Matrix" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="img-placeholder" style="display:none">Autoencoder_confusion_matrix.png</div>
+        <div class="cm-caption">
+          <span>Autoencoder</span>
+          <span class="cm-auc">AUC 0.85</span>
+        </div>
+      </div>
+      <div class="cm-card">
+        <img src="Isolation Forest_confusion_matrix.png" alt="Isolation Forest Confusion Matrix" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="img-placeholder" style="display:none">Isolation Forest_confusion_matrix.png</div>
+        <div class="cm-caption">
+          <span>Isolation Forest</span>
+          <span style="color:var(--text-muted)">AUC 0.78</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CONCLUSION -->
+<section>
+  <div class="container">
+    <div class="section-label">Findings</div>
+    <h2>Conclusion</h2>
+    <div class="conclusion-box fade-up">
+      <p>
+        The <strong>Autoencoder outperforms Isolation Forest</strong> on this dataset, achieving a ROC AUC of <strong>0.85 vs 0.78</strong>. The critical advantage is fraud recall: the Autoencoder correctly identifies <strong>90% of fraudulent transactions</strong> compared to 85% for Isolation Forest.
+      </p>
+      <p>
+        In a fraud detection context, <strong>recall is the decisive metric</strong>. A missed fraud case (false negative) results in direct financial loss to the institution and customer. Low precision on the fraud class (0.02) is acceptable — flagging a legitimate transaction for review is a recoverable error; missing an actual fraud is not.
+      </p>
+      <div class="key-insight">
+        <span class="insight-icon">→</span>
+        <span>The Autoencoder's ability to reconstruct normal transaction patterns and flag high-reconstruction-error outliers makes it well-suited for this severely imbalanced dataset, where supervised methods would struggle with the 0.17% positive class rate.</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    Credit Card Fraud Detection · Data Science Portfolio · zainab1324
+  </div>
+</footer>
+
+</body>
+</html>
