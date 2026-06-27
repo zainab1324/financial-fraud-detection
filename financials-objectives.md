@@ -21,5 +21,5 @@ https://www.kaggle.com/mlg-ulb/creditcardfraud
 - [x] Data Preprocessing: Handled imbalanced data with SMOTE, created time-based features (Hour, Day), scaled Amount.
 - [x] Feature Engineering: Added Hour and Day features from Time column.
 - [x] Modeling: Implemented Autoencoder for anomaly detection and Isolation Forest for outlier analysis.
-- [x] Evaluation: Evaluated models with classification reports, ROC AUC, confusion matrices. Autoencoder achieved ~0.85 ROC AUC, Isolation Forest ~0.78.
+- [x] Evaluation: Evaluated models with classification reports, ROC AUC, confusion matrices. Autoencoder achieved 0.906 ROC AUC (precision 0.95, recall 0.86 on fraud). Isolation Forest achieved 0.883 ROC AUC (precision 0.90, recall 0.87 on fraud).
 - [x] Deployment: Created reproducible script, requirements.txt, and README.md for the project.

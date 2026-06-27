@@ -84,13 +84,16 @@ class FraudDetector:
         self.models['autoencoder'] = autoencoder
         logger.info("Autoencoder trained.")
     
-    def detect_anomalies_autoencoder(self, threshold=0.01):
+    def detect_anomalies_autoencoder(self):
         logger.info("Detecting anomalies with autoencoder...")
         X_test_scaled = self.scaler.transform(self.X_test)
         reconstructions = self.models['autoencoder'].predict(X_test_scaled)
         mse = np.mean(np.power(X_test_scaled - reconstructions, 2), axis=1)
-        
-        # Anomalies are high MSE
+
+        # Threshold at 95th percentile of normal transaction reconstruction errors
+        normal_mse = mse[self.y_test == 0]
+        threshold = np.percentile(normal_mse, 95)
+        logger.info(f"Autoencoder threshold (95th pct of normal MSE): {threshold:.6f}")
         predictions = (mse > threshold).astype(int)
         return predictions, mse
     
@@ -100,14 +103,14 @@ class FraudDetector:
         X = self.df.drop(['Time', 'Class', 'Amount'], axis=1)
         y = self.df['Class']
         
-        iso_forest = IsolationForest(contamination=0.0017, random_state=42)  # approx fraud rate
+        iso_forest = IsolationForest(contamination=0.1, random_state=42)
         iso_forest.fit(X)
         
         self.models['isolation_forest'] = iso_forest
         logger.info("Isolation Forest trained.")
     
     def detect_anomalies_isolation_forest(self):
-        X_test_original = self.df.loc[self.X_test.index].drop(['Time', 'Class', 'Amount'], axis=1)
+        X_test_original = self.X_test
         predictions = self.models['isolation_forest'].predict(X_test_original)
         # IsolationForest: -1 for anomaly, 1 for normal
         predictions = (predictions == -1).astype(int)
@@ -176,7 +179,7 @@ class FraudDetector:
         
         # Evaluate Isolation Forest
         if_predictions = self.detect_anomalies_isolation_forest()
-        self.evaluate_model(if_predictions, 'Isolation Forest')
+        self.evaluate_model(if_predictions, 'Isolation_Forest')
 
 if __name__ == "__main__":
     detector = FraudDetector('data/creditcard.csv')

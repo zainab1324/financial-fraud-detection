@@ -1,13 +1,4 @@
-import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
-from sklearn.metrics import classification_report, confusion_matrix, roc_auc_score
-import os
 
-# Assuming results are saved or simulated
-# In real run, this would load from the script's outputs
-
-html_content = """
 <!DOCTYPE html>
 <html>
 <head>
@@ -65,9 +56,3 @@ html_content = """
     <p>The Autoencoder provides better fraud detection with higher recall, minimizing revenue loss from undetected fraud.</p>
 </body>
 </html>
-"""
-
-with open('financial-fraud-detection/fraud_report.html', 'w') as f:
-    f.write(html_content)
-
-print("HTML report generated: financial-fraud-detection/fraud_report.html")
