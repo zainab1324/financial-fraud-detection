@@ -179,5 +179,5 @@ class FraudDetector:
         self.evaluate_model(if_predictions, 'Isolation Forest')
 
 if __name__ == "__main__":
-    detector = FraudDetector('creditcard.csv')
+    detector = FraudDetector('data/creditcard.csv')
     detector.run_full_pipeline()
