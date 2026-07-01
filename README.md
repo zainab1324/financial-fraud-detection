@@ -41,3 +41,5 @@ The dataset contains transactions made by credit cards in September 2013 by Euro
 
 - Minimizes revenue loss by catching fraudulent transactions
 - Balances false positives to avoid blocking legitimate transactions
+
+  ![App screenshot](financial-fraud-detection/fraud_report.png)
